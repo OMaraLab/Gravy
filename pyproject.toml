@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "GraVY"
+version = "0.1.0"
+authors = [
+  { name="Frank Fu", email="y.f.fu@uq.edu.au" },
+]
+description = "Graph neural network to assign bond vibrational frequency"
+readme = "README.md"
+requires-python = ">=3.11.8"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+
+license-files = ["LICENSE"]
+
+dependencies = [
+  "chemistry-data-structure @ git+https://github.com/OMaraLab/NXMol.git@main",
+  "numpy >= 1.26.4",
+  "pandas >= 2.3.1",
+  "scipy >= 1.16.0",
+  "torch >= 2.5.1",
+  "matplotlib >= 3.10.1",
+  "dgl >= 2.1.0",
+  "PuLP >= 2.8.0",
+  "scikit-learn >= 1.7.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/OMaraLab/Gravy"
+Issues = "https://github.com/pypa/sampleproject/issues"
