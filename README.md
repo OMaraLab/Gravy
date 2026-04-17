@@ -4,5 +4,7 @@ Neural network model discussed in "A graph-based machine learning framework to a
 
 Installation:
 ```
+# clone this repo
+cd Gravy
 pip install .
 ```
