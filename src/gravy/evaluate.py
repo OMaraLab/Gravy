@@ -3,9 +3,9 @@ from collections import defaultdict
 import dgl.data
 import numpy as np
 import re
-from constants import ir_intervals, fg_map
-from train import edgeFeatureSAGEConv, graphDataset
-from utils import progress_bar
+from refactor.constants import ir_intervals, fg_map
+from refactor.train import edgeFeatureSAGEConv, graphDataset
+from refactor.utils import progress_bar
 from scipy.spatial import distance
 import torch
 from scipy.stats import gaussian_kde

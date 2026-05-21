@@ -2,28 +2,48 @@ import pickle
 from collections import defaultdict
 
 import dgl
-import torch
+import joblib
 import pandas as pd
-from progress_bar
+import torch
 from sklearn.preprocessing import MinMaxScaler
 
-from constants import nodeFeatures as nf
+from refactor.constants import nodeFeatures as nf
+from refactor.utils import progress_bar
 
 
 class preprocessDataset:
-    def __init__(self, dataset_prefix, dataset_path, overwrite_with=None):
-        self.ndatas = pickle.load(
-            open(f"{dataset_path}/{dataset_prefix}_graph_ndatas.pickle", "rb")
-        )
-        self.edatas = pickle.load(
-            open(f"{dataset_path}/{dataset_prefix}_graph_edatas.pickle", "rb")
-        )
-        self.graphs = pickle.load(
-            open(f"{dataset_path}/{dataset_prefix}_graphs.pickle", "rb")
-        )
+    def __init__(
+        self,
+        dataset_prefix=None,
+        dataset_path=None,
+        overwrite_with=None,
+        ndatas=None,
+        edatas=None,
+        graphs=None,
+    ):
         self.overwrite_with = overwrite_with
         self.dataset_prefix = dataset_prefix
         self.dataset_path = dataset_path
+
+        if ndatas is not None and edatas is not None and graphs is not None:
+            self.ndatas = ndatas
+            self.edatas = edatas
+            self.graphs = graphs
+        else:
+            if not dataset_prefix or not dataset_path:
+                raise ValueError(
+                    "Either (ndatas, edatas, graphs) must be provided in-memory, "
+                    "or dataset_prefix and dataset_path must be provided to load them from disk."
+                )
+            self.ndatas = pickle.load(
+                open(f"{dataset_path}/{dataset_prefix}_graph_ndatas.pickle", "rb")
+            )
+            self.edatas = pickle.load(
+                open(f"{dataset_path}/{dataset_prefix}_graph_edatas.pickle", "rb")
+            )
+            self.graphs = pickle.load(
+                open(f"{dataset_path}/{dataset_prefix}_graphs.pickle", "rb")
+            )
 
     def _overwrite_feature_vectors(
         self, new_dataset_prefix, new_dataset_path, update_all=False
@@ -69,7 +89,7 @@ class preprocessDataset:
             for x in self.ndatas[molID]:
                 atom1_nei, atom2_nei = x[nf.FIRST_DEGREE_NEIGHBOURS]
                 if x[nf.ATOM1_ID] == i:
-                    # see features in constants.nodeFeatures
+                    # see features in refactor.constants.nodeFeatures
                     unpaired_ndatas.append(
                         x[nf.ATOM1_ELEMENT : nf.ATOM2_ID] + [atom1_nei] + [molID]
                     )
@@ -144,8 +164,24 @@ class preprocessDataset:
 
         return index_list
 
-    def _normalize_features(self, features):
-        return MinMaxScaler().fit_transform(features)
+    def _normalize_features(self, features, load_path=None, save_path=None):
+        if hasattr(features, "columns") and "molID" in features.columns:
+            if not pd.api.types.is_numeric_dtype(features["molID"]):
+                features = features.copy()
+                features["molID"] = 0.0
+
+        if load_path:
+            scaler = joblib.load(load_path)
+            # Align features using the loaded scaler's training columns (if available)
+            if hasattr(scaler, "feature_names_in_") and hasattr(features, "reindex"):
+                features = features.reindex(columns=scaler.feature_names_in_, fill_value=0)
+        else:
+            scaler = MinMaxScaler().fit(features)
+
+        if save_path and not load_path:
+            joblib.dump(scaler, save_path)
+
+        return scaler.transform(features)
 
     def _save_graphs(self):
         graph_list = []
@@ -162,7 +198,10 @@ class preprocessDataset:
 
     def process(
         self,
+        load_scaler_path=None,
+        save_scaler_path=None,
         update_all=False,
+        save_graphs=True,
     ):
         """
         Create dgl graphs with node and edge features from the dataset.
@@ -183,7 +222,9 @@ class preprocessDataset:
         ndatas_df = self._one_hot_encode_features(all_ndatas)
         ndatas_index_list = self._parse_feature_dataframe(ndatas_df["molID"])
         ndatas_array = self._normalize_features(
-            ndatas_df
+            ndatas_df,
+            load_path=load_scaler_path[0] if load_scaler_path else None,
+            save_path=save_scaler_path[0] if save_scaler_path else None,
         )  # fit_transform() returns ndarray, so this line needs to come after the previous
         for molID in progress_bar(self.graphs, prefix="assigning node features"):
             for ndata_molID in ndatas_index_list:
@@ -200,7 +241,9 @@ class preprocessDataset:
         )
         edatas_score_array = edatas_df["molID_fc_pair"].apply(lambda x: x[1]).to_numpy()
         edatas_feat_array = self._normalize_features(
-            edatas_df.drop(columns=["molID_fc_pair"])
+            edatas_df.drop(columns=["molID_fc_pair"]),
+            load_path=load_scaler_path[1] if load_scaler_path else None,
+            save_path=save_scaler_path[1] if save_scaler_path else None,
         )
         for molID in progress_bar(self.graphs, prefix="assigning edge features"):
             for edata_molID in edatas_index_list:
@@ -216,4 +259,5 @@ class preprocessDataset:
                         ]
                     ).to(torch.float32)
                     break
-        self._save_graphs()
+        if save_graphs:
+            self._save_graphs()

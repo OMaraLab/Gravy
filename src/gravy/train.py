@@ -143,7 +143,7 @@ class edgeFeatureSAGEConv(tnn.Module):
                 # combined_node_features = torch.cat(
                 #     [edges.src["h_out"], edges.dst["h_out"]], dim=1
                 # )
-                combined_node_features = edges.src["h_out"] * edges.dst["h_out"]
+                combined_node_features = edges.src["h_out"] + edges.dst["h_out"]
                 score = self.edge_predictor_mlp(combined_node_features)
                 return {"score": score}
 

@@ -1,4 +1,3 @@
-import dgl
 import os
 import pickle
 import random
@@ -6,9 +5,12 @@ import re
 import statistics
 from sys import exit
 
-from chemistry_data_structure.helpers.graphs import calc_equal_bonds, cull_equal_bonds
+import dgl
 from pulp import PulpSolverError
-from utils import load_charges, progress_bar
+
+from chemistry_data_structure.helpers.graphs import (calc_equal_bonds,
+                                                     cull_equal_bonds)
+from refactor.utils import load_charges, progress_bar
 
 
 def load_qm_data(
@@ -40,36 +42,41 @@ def load_mol3D(qm_data, net_charge, molID, discretise_bond_order=False):
         net_charge - Optional  : net charge of the molecule (Int)
         molID       - Optional  : molID of the molecule (Str)
     """
-    from chemistry_data_structure.parsing.input_parsers import ATB_QMData_to_Molecule3D
+    from chemistry_data_structure.parsing.input_parsers import \
+        ATB_QMData_to_Molecule3D
 
     return ATB_QMData_to_Molecule3D(qm_data, net_charge=net_charge, name=molID, discretise_bond_order=discretise_bond_order)
 
 
-def get_bond_features(mol3D, i: int, j: int) -> list:
+def get_bond_features(mol3D, i, j) -> list:
     """
     Encode the features of a bond in a mol3Decule into a list.
 
     @params:
         mol3D    - Required  : mol3Decule object (mol3D)
     """
+    # Dynamically determine the correct key type (string or integer) present in mol3D.atoms
+    key_i = str(i) if str(i) in mol3D.atoms else i
+    key_j = str(j) if str(j) in mol3D.atoms else j
+
     return [
         int(i),
-        mol3D.atoms[i].element,
-        mol3D.atoms[i].atomic_number,
-        mol3D.atoms[i].radius,
-        mol3D.atoms[i].mass,
-        mol3D.atoms[i].electronegativity,
-        mol3D.calcNumBonds(i),
+        mol3D.atoms[key_i].element,
+        mol3D.atoms[key_i].atomic_number,
+        mol3D.atoms[key_i].radius,
+        mol3D.atoms[key_i].mass,
+        mol3D.atoms[key_i].electronegativity,
+        mol3D.calcNumBonds(key_i),
         int(j),
-        mol3D.atoms[j].element,
-        mol3D.atoms[j].atomic_number,
-        mol3D.atoms[j].radius,
-        mol3D.atoms[j].mass,
-        mol3D.atoms[j].electronegativity,
-        mol3D.calcNumBonds(j),
-        mol3D.bonds[i, j].get("bond_length"),
-        mol3D.bonds[i, j].get("bond_order"),
-        mol3D.BFS_edge(i, j, 1),
+        mol3D.atoms[key_j].element,
+        mol3D.atoms[key_j].atomic_number,
+        mol3D.atoms[key_j].radius,
+        mol3D.atoms[key_j].mass,
+        mol3D.atoms[key_j].electronegativity,
+        mol3D.calcNumBonds(key_j),
+        mol3D.bonds[key_i, key_j].get("bond_length"),
+        mol3D.bonds[key_i, key_j].get("bond_order") or mol3D.bond_orders.get((key_i, key_j)) or mol3D.bond_orders.get((key_j, key_i)),
+        mol3D.BFS_edge(key_i, key_j, 1),
     ]
 
 
@@ -195,11 +202,9 @@ def create_graph_dataset(
         fdb_path            - Optional  : path to the FDB fragments
         check               - Optional  : checks if all gathered neighbours have the same force constant
     """
-    from fragment_search import calc_mean_fc
     from chemistry_data_structure.helpers.ir_conversion import (
-        get_distr_from_hessian_FDB,
-        get_molecules_in_FDB_fragment,
-    )
+        get_distr_from_hessian_FDB, get_molecules_in_FDB_fragment)
+    from refactor.fragment_search import calc_mean_fc
 
     assert (bool(gathered_neighbours) != bool(fdb_path)) or (
         gathered_neighbours == fdb_path == None
@@ -319,3 +324,30 @@ def create_graph_dataset(
     pickle.dump(graph_ndatas, open(f"{output_prefix}_graph_ndatas.pickle", "wb"))
     pickle.dump(graph_edatas, open(f"{output_prefix}_graph_edatas.pickle", "wb"))
     pickle.dump(graphs, open(f"{output_prefix}_graphs.pickle", "wb"))
+
+def create_graph_dataset_from_pdb_mols(pdb_paths : list[str], charges_fn : str, output_prefix : str):
+    graph_ndatas = {}
+    graph_edatas = {}
+    graphs = {}
+    from chemistry_data_structure.parsing.input_parsers import pdb_to_Molecule3D
+    charges = load_charges(charges_fn)
+    for id, pdb_path in progress_bar(enumerate(pdb_paths), prefix="Loading mol3D objects from pdb files", total=len(pdb_paths)):
+        try:
+            mol3D = pdb_to_Molecule3D(
+                    open(pdb_path, 'r').read(), 
+                    mol_name=str(id), 
+                    net_charge=charges[str(id)], 
+                    assign_bond_orders_and_charges=True
+                    )
+            write_graph_features(
+                    mol3D, None, None, None, graph_edatas, graph_ndatas, graphs
+                )
+
+        except PulpSolverError as e:
+            print(f"PulpSolverError for {pdb_path}: {e}. Could not solve bond orders. Skipping this molecule.")
+            continue
+
+    pickle.dump(graph_ndatas, open(f"{output_prefix}_graph_ndatas.pickle", "wb"))
+    pickle.dump(graph_edatas, open(f"{output_prefix}_graph_edatas.pickle", "wb"))
+    pickle.dump(graphs, open(f"{output_prefix}_graphs.pickle", "wb"))
+    
