@@ -20,4 +20,4 @@ NET_CHARGE
 reflect your molecule of interest.
 
 ### TODO
-Manual passing of fractional bond orders during PDB
+- Manual passing of fractional bond orders during PDB
