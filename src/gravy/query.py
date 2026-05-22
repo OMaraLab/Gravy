@@ -4,7 +4,6 @@ from collections import defaultdict
 
 import numpy as np
 import torch
-
 from chemistry_data_structure.helpers.ir_conversion import wavenumber_to_gromacs_fc
 from chemistry_data_structure.parsing.input_parsers import pdb_to_Molecule3D
 from refactor.featurize import write_full_mol_graph
@@ -143,7 +142,6 @@ def predict_force_constants(
             }
         )
 
-    # Average the two directed-edge predictions per undirected physical bond
     results = {}
     for bond_key, preds_list in bond_predictions.items():
         assert (len(preds_list) == 2) and preds_list[0]["gmx_fc"] == preds_list[1][
@@ -164,10 +162,11 @@ def predict_force_constants(
 if __name__ == "__main__":
     # --- Demo: Single-model inference on a PDB file ---
 
-    NODE_SCALER = "./scalers/original_hessian_40000_ndatas.joblib"
-    EDGE_SCALER = "./scalers/original_hessian_40000_edatas.joblib"
-    CHECKPOINT = "./checkpoints/40000_discrete_best_fold_6_of_10.pt"
-    PDB_PATH = "./_I0L_allatom_optimised_geometry.pdb"
+    NODE_SCALER = "./scalers/ndatas.z"
+    EDGE_SCALER = "./scalers/edatas.z"
+    CHECKPOINT = "./checkpoints/discrete_bond_order_weights.pt"
+    PDB_PATH = "./examples/dexverapamil.pdb"
+    MOL_NAME = "dexverapamil"
 
     # Step 1: Initialize DGL environment
     init_inference_env()
@@ -178,7 +177,7 @@ if __name__ == "__main__":
     # We need a sample graph to initialise the model architecture,
     # so we run the featurization + preprocessing pipeline first.
     mol3D_tmp = pdb_to_Molecule3D(
-        pdb_content, mol_name="I0L", net_charge=0, assign_bond_orders_and_charges=True
+        pdb_content, mol_name=MOL_NAME, net_charge=0, assign_bond_orders_and_charges=True
     )
 
     tmp_ndatas, tmp_edatas, tmp_graphs = {}, {}, {}
@@ -194,7 +193,7 @@ if __name__ == "__main__":
     tmp_preprocessor.process(
         load_scaler_path=[NODE_SCALER, EDGE_SCALER], save_graphs=False
     )
-    sample_graph = tmp_preprocessor.graphs["I0L"]
+    sample_graph = tmp_preprocessor.graphs[MOL_NAME]
 
     # Step 3: Load the single model
     model = load_inference_model(sample_graph, CHECKPOINT)
@@ -207,7 +206,7 @@ if __name__ == "__main__":
         node_scaler_path=NODE_SCALER,
         edge_scaler_path=EDGE_SCALER,
         net_charge=0,
-        mol_name="I0L",
+        mol_name=MOL_NAME,
     )
     end_time = time.process_time()
 
@@ -217,8 +216,19 @@ if __name__ == "__main__":
     print(f"{'Bond':<15} {'Elements':<12} {'GMX FC':>10} {'Wavenumber':>12}")
     print("-" * 52)
     for bond_key, data in results.items():
+        bond_order = mol3D.bond_orders.get(
+            (bond_key[0], bond_key[1])
+        ) or mol3D.bond_orders.get((bond_key[1], bond_key[0]))
+        # If bond orders are fractional, use get() and not the bond_orders attribute
+        # bond_order = mol3D.bonds[bond_key[0], bond_key[1]].get("bond_order")
+        bond_order_mapping = ["-", "=", "≡"]
         bond_str = f"({int(bond_key[0])+1}, {int(bond_key[1])+1})"  # 1-based indices because PDB files are 1-indexed
-        elem_str = f"{data['atom_elements'][0]}-{data['atom_elements'][1]}"
+        bond_symbol = "-"
+        for symbol, order in zip(bond_order_mapping, [1, 2, 3]):
+            if float(bond_order) < (order + 0.3):
+                bond_symbol = symbol
+                break
+        elem_str = f"{data['atom_elements'][0]}{bond_symbol}{data['atom_elements'][1]}"
         print(
             f"{bond_str:<15} {elem_str:<12} {data['gmx_fc']:>10.2f} {data['wavenumber']:>12.2f}"
         )
