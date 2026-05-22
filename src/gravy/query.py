@@ -50,6 +50,7 @@ def predict_force_constants(
     edge_scaler_path: str,
     net_charge: int = 0,
     mol_name: str = "query",
+    amber_units: bool = False,  # True if you'd like kcal/mol/Å^2 instead of Gromacs units (kJ/mol/nm^2)
 ):
     """
     Run complete end-to-end GNN inference from a PDB structure completely in-memory.
@@ -124,7 +125,10 @@ def predict_force_constants(
         u_elem = mol3D.atoms[u_idx].element
         v_elem = mol3D.atoms[v_idx].element
 
+        amber_fc_val = None
         gmx_fc_val = preds[edge_idx]
+        if amber_units:
+            amber_fc_val = gmx_fc_val / 418.4
 
         # Convert to wavenumber (cm^-1)
         wavenumber_val = wavenumber_to_gromacs_fc(
@@ -136,7 +140,7 @@ def predict_force_constants(
         )
         bond_predictions[bond_key].append(
             {
-                "gmx_fc": gmx_fc_val,
+                "fc": gmx_fc_val if not amber_units else amber_fc_val,
                 "wavenumber": wavenumber_val,
                 "elements": (u_elem, v_elem),
             }
@@ -144,14 +148,14 @@ def predict_force_constants(
 
     results = {}
     for bond_key, preds_list in bond_predictions.items():
-        assert (len(preds_list) == 2) and preds_list[0]["gmx_fc"] == preds_list[1][
-            "gmx_fc"
+        assert (len(preds_list) == 2) and preds_list[0]["fc"] == preds_list[1][
+            "fc"
         ], f"Expected exactly 2 identical predictions for bond {bond_key}, but got: { preds_list}"
-        gmx_fc = preds_list[0]["gmx_fc"]
+        fc = preds_list[0]["fc"]
         wavenumber = preds_list[0]["wavenumber"]
 
         results[bond_key] = {
-            "gmx_fc": float(gmx_fc),
+            "fc": float(fc),
             "wavenumber": float(wavenumber),
             "atom_elements": preds_list[0]["elements"],
         }
@@ -165,8 +169,11 @@ if __name__ == "__main__":
     NODE_SCALER = "./scalers/ndatas.z"
     EDGE_SCALER = "./scalers/edatas.z"
     CHECKPOINT = "./checkpoints/discrete_bond_order_weights.pt"
+
+    # edit here
     PDB_PATH = "./examples/dexverapamil.pdb"
     MOL_NAME = "dexverapamil"
+    NET_CHARGE = 0
 
     # Step 1: Initialize DGL environment
     init_inference_env()
@@ -177,7 +184,10 @@ if __name__ == "__main__":
     # We need a sample graph to initialise the model architecture,
     # so we run the featurization + preprocessing pipeline first.
     mol3D_tmp = pdb_to_Molecule3D(
-        pdb_content, mol_name=MOL_NAME, net_charge=0, assign_bond_orders_and_charges=True
+        pdb_content,
+        mol_name=MOL_NAME,
+        net_charge=NET_CHARGE,
+        assign_bond_orders_and_charges=True,
     )
 
     tmp_ndatas, tmp_edatas, tmp_graphs = {}, {}, {}
@@ -205,8 +215,9 @@ if __name__ == "__main__":
         model=model,
         node_scaler_path=NODE_SCALER,
         edge_scaler_path=EDGE_SCALER,
-        net_charge=0,
+        net_charge=NET_CHARGE,
         mol_name=MOL_NAME,
+        amber_units=False,  # Set to True if you'd like kcal/mol/Å^2 instead of Gromacs units (kJ/mol/nm^2)
     )
     end_time = time.process_time()
 
@@ -230,5 +241,5 @@ if __name__ == "__main__":
                 break
         elem_str = f"{data['atom_elements'][0]}{bond_symbol}{data['atom_elements'][1]}"
         print(
-            f"{bond_str:<15} {elem_str:<12} {data['gmx_fc']:>10.2f} {data['wavenumber']:>12.2f}"
+            f"{bond_str:<15} {elem_str:<12} {data['fc']:>10.2f} {data['wavenumber']:>12.2f}"
         )
