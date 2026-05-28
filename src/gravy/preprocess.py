@@ -7,8 +7,8 @@ import pandas as pd
 import torch
 from sklearn.preprocessing import MinMaxScaler
 
-from chemistry_data_structure.refactor.constants import nodeFeatures as nf
-from chemistry_data_structure.refactor.utils import progress_bar
+from .constants import nodeFeatures as nf
+from .utils import progress_bar
 
 
 class preprocessDataset:

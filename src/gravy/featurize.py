@@ -10,7 +10,7 @@ from pulp import PulpSolverError
 
 from chemistry_data_structure.helpers.graphs import (calc_equal_bonds,
                                                      cull_equal_bonds)
-from chemistry_data_structure.refactor.utils import load_charges, progress_bar
+from .utils import load_charges, progress_bar
 
 
 def load_qm_data(
@@ -204,7 +204,7 @@ def create_graph_dataset(
     """
     from chemistry_data_structure.helpers.ir_conversion import (
         get_distr_from_hessian_FDB, get_molecules_in_FDB_fragment)
-    from chemistry_data_structure.refactor.fragment_search import calc_mean_fc
+    from .fragment_search import calc_mean_fc
 
     assert (bool(gathered_neighbours) != bool(fdb_path)) or (
         gathered_neighbours == fdb_path == None
