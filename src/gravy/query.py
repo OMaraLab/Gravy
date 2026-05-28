@@ -6,9 +6,9 @@ import numpy as np
 import torch
 from chemistry_data_structure.helpers.ir_conversion import wavenumber_to_gromacs_fc
 from chemistry_data_structure.parsing.input_parsers import pdb_to_Molecule3D
-from refactor.featurize import write_full_mol_graph
-from refactor.preprocess import preprocessDataset
-from refactor.train import init_model, init_process_group
+from chemistry_data_structure.refactor.featurize import write_full_mol_graph
+from chemistry_data_structure.refactor.preprocess import preprocessDataset
+from chemistry_data_structure.refactor.train import init_model, init_process_group
 
 # Global state to prevent double initialization of DGL backend
 _inference_env_initialized = False

@@ -6,7 +6,7 @@ import re
 from statistics import mean
 
 from chemistry_data_structure.parsing import hessian_analysis, input_parsers
-from refactor import featurize, utils
+from chemistry_data_structure.refactor import featurize, utils
 
 
 def nested_defaultdict_list():

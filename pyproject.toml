@@ -22,12 +22,16 @@ license-files = ["LICENSE"]
 
 dependencies = [
   "chemistry-data-structure-gravy @ git+https://github.com/OMaraLab/NXMol.git@main",
-  "numpy >= 1.26.4",
+  "numpy == 1.26.4",
   "pandas >= 2.3.1",
   "scipy >= 1.16.0",
-  "torch >= 2.5.1",
+  "torch == 2.4.0",
+  "torchdata == 0.8.0",
+  "pydantic",
   "matplotlib >= 3.10.1",
-  "dgl >= 2.1.0",
+  "deepchem",
+  "tensorflow",
+  "dgl @ https://data.dgl.ai/wheels/torch-2.4/cu121/dgl-2.4.0%2Bcu121-cp311-cp311-manylinux1_x86_64.whl",
   "PuLP >= 2.8.0",
   "scikit-learn >= 1.7.2",
 ]

@@ -1,3 +1,5 @@
 *original*.pt
 40000*.pt
 src/gravy/__pycache__
+build/lib/gravy
+src/GraVY.egg-info
