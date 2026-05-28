@@ -21,7 +21,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 
 dependencies = [
-  "chemistry-data-structure @ git+https://github.com/OMaraLab/NXMol.git@main",
+  "chemistry-data-structure-gravy @ git+https://github.com/OMaraLab/NXMol.git@main",
   "numpy >= 1.26.4",
   "pandas >= 2.3.1",
   "scipy >= 1.16.0",
