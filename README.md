@@ -9,15 +9,12 @@ conda create --name gravy python=3.11.8
 
 ### Dependencies
 - python 3.11.8
-- cuda 12.1 (optional, see point about DGL)
+- CUDA 12.1 (optional, see point about DGL)
 - [chemical_equivalence](https://github.com/ATB-UQ/chemical_equivalence)
 - [atb_output](https://github.com/ATB-UQ/atb_outputs)
 - [NXMol](https://github.com/OMaraLab/NXMol)
-- **[DGL](https://www.dgl.ai/pages/start.html)** If you are not on Linux and/or not 
-on a NVIDIA GPU, you need to install DGL manually. Ensure that you choose a version 
-compatible with torch 2.4.x as that is the version gravy is tested on. Otherwise, 
-proceed with installation instructions below.
-
+- **[DGL](https://www.dgl.ai/pages/start.html)** 
+**NOTE** that the specific DGL version specified in `pyproject.toml` is tested and compliant with CUDA 12.1 on Linux/WSL. DGL has dropped support for Windows and MacOS, so if you're on those platforms, you will need to comment out the DGL line in `pyproject.toml` and manually install DGL with an older version of torch.
 ### Installation
 ```
 # clone this repo
