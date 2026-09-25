@@ -1,6 +1,6 @@
 ## Graph neural network to assign bond vibrational frequency
 
-Neural network model discussed in "A graph-based machine learning framework to assign empirical interaction parameters for novel molecules" (doi: 10.1002/jcc.70508)
+Neural network model discussed in ["A graph-based machine learning framework to assign empirical interaction parameters for novel molecules"](https://onlinelibrary.wiley.com/doi/10.1002/jcc.70508) (doi: 10.1002/jcc.70508)
 
 It is recommended that you use a new conda environment to install this package and its dependencies.
 ```
